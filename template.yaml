@@ -1,13 +1,14 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
-Description: |
+Description: >
   eventbridge-integration-solution-buildkite-build-workflow
-  Sample SAM Template for eventbridge-integration-solution-buildkite-build-workflow
+
+  ()
 Metadata:
   AWS::Serverless::Application:
     Name: Amazon EventBridge Integration Solution with AWS Step Functions
     Description: This application demonstrates an integration with AWS Step Functions for Buildkite
-    Author: Young Jeong
+    Author: AWS Quick Starts
     LicenseUrl: LICENSE
     ReadmeUrl: README.md
     Labels:
@@ -17,7 +18,8 @@ Metadata:
       - solution
       - aws
       - stepfunctions
-    HomePageUrl: https://aws.amazon.com/quickstart/eventbridge/aws-lambda
+      - buildkite
+    HomePageUrl: https://aws.amazon.com/quickstart/eventbridge/buildkite-build-workflow
     SemanticVersion: 1.0.0
     SourceCodeUrl: https://github.com/aws-quickstart/eventbridge-integration-solution-buildkite-build-workflow
   AWS::CloudFormation::Interface:
@@ -37,26 +39,29 @@ Metadata:
       S3EventBucketName:
         default: S3 Artifact Bucket
       ContactEmailInformation:
-        default: abcde@gmail.com
+        default: hello@example.com
 Parameters:
   EventSourceName:
     Type: String
-    Default: aws.partner/awslabs.net.test/1234567890/test-event-source
-    MinLength: 1
+    Default: aws.partner/buildkite.com/amazon-eventbridge/uuid
+    MinLength: 49
     MaxLength: 256
-    Description: Buildkite Integration with EventBridge
-  BuildS3BucketName:
+    Description: Name of the Buildkite Partner Event Source to associate with an Event Bus. For example, aws.partner/buildkite.com/amazon-eventbridge/uuid
+  BucketName:
     Type: String
-    Default: buildkite-builds-save-artifact
-    MinLength: 10
-    MaxLength: 128
-    Description: S3 Bucket where the Build Event is saved
+    Default: ''
+    AllowedPattern: '[a-zA-Z0-9.-]*'
+    MaxLength: 63
+    Description: Name of the Amazon S3 Bucket to create. Leave blank for an automatically generated name.
   ContactEmailInformation:
     Type: String
-    Default: abcde@gmail.com
-    MinLength: 10
-    MaxLength: 128
+    Default: hello@example.com
     Description: Email for user to be notified.
+
+Conditions:
+  AutoGenerateBucketName:
+    !Equals [ !Ref BucketName, '' ]
+
 Globals:
   Function:
     Runtime: python3.8
@@ -68,7 +73,7 @@ Resources:
     Properties:
       Environment:
         Variables:
-          s3_bucket_name: !Ref BuildS3BucketName
+          s3_bucket_name: !Ref BucketName
       FunctionName: !Sub ${AWS::StackName}-s3
       Handler: save-to-s3.lambda_handler
   NotifyUserFunction:
