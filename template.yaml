@@ -2,12 +2,12 @@ AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
 Description: >
   eventbridge-integration-solution-buildkite-build-workflow
-
-  ()
+  **WARNING** This template creates AWS resources. 
+  You will be billed for the AWS resources used if you create a stack from this template. (qs-1qp6nnrc5)
 Metadata:
   AWS::Serverless::Application:
     Name: Amazon EventBridge Integration Solution with AWS Step Functions
-    Description: This application demonstrates an integration with AWS Step Functions for Buildkite
+    Description: This application demonstrates an integration with AWS Step Functions for Buildkite. 
     Author: AWS Quick Starts
     LicenseUrl: LICENSE
     ReadmeUrl: README.md
@@ -68,12 +68,15 @@ Globals:
     CodeUri: src/functions
     Timeout: 3
 Resources:
+  ArtifactS3Bucket:
+    Type: AWS::S3::Bucket
+    Condition: AutoGenerateBucketName
   SavetoS3Function:
     Type: AWS::Serverless::Function
     Properties:
       Environment:
         Variables:
-          s3_bucket_name: !Ref BucketName
+          s3_bucket_name: !If [AutoGenerateBucketName, !Ref ArtifactS3Bucket, !Ref BucketName]
       FunctionName: !Sub ${AWS::StackName}-s3
       Handler: save-to-s3.lambda_handler
   NotifyUserFunction:
