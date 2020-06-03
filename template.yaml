@@ -115,6 +115,9 @@ Resources:
       Environment:
         Variables:
           s3_bucket_name: !Ref S3Bucket
+      Policies:
+      - S3WritePolicy:
+          BucketName: !Ref S3Bucket
 
   NotifyUserFunction:
     Type: AWS::Serverless::Function
