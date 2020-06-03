@@ -12,30 +12,30 @@ Metadata:
     LicenseUrl: LICENSE
     ReadmeUrl: README.md
     Labels:
-      - amazon
-      - eventbridge
-      - integration
-      - solution
-      - aws
-      - stepfunctions
-      - buildkite
+    - amazon
+    - eventbridge
+    - integration
+    - solution
+    - aws
+    - stepfunctions
+    - buildkite
     HomePageUrl: https://aws.amazon.com/quickstart/eventbridge/buildkite-build-workflow
     SemanticVersion: 0.1.0
     SourceCodeUrl: https://github.com/aws-quickstart/eventbridge-integration-solution-buildkite-build-workflow
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: Amazon EventBridge Integration Solution
-        Parameters:
-        - EventSourceName
-      - Label:
-          default: Amazon S3
-        Parameters:
-        - BucketName
-      - Label:
-          default: Amazon SNS
-        Parameters:
-        - ContactEmail
+    - Label:
+        default: Amazon EventBridge Integration Solution
+      Parameters:
+      - EventSourceName
+    - Label:
+        default: Amazon S3
+      Parameters:
+      - BucketName
+    - Label:
+        default: Amazon SNS
+      Parameters:
+      - ContactEmail
     ParameterLabels:
       EventSourceName:
         default: Event Source Name
