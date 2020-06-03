@@ -5,10 +5,10 @@ Description: >
   **WARNING** This template creates AWS resources. 
   You will be billed for the AWS resources used if you create a stack from this template. (qs-1qp6nnrc5)
 Metadata:
-  AWS::Serverless::Application:
-    Name: Amazon EventBridge Integration Solution with AWS Step Functions
+  AWS::ServerlessRepo::Application:
+    Name: Amazon-EventBridge-Integration-Solution-Buildkite-Build-Workflow
     Description: This application demonstrates an integration with AWS Step Functions for Buildkite. 
-    Author: AWS Quick Starts
+    Author: AWS Quick Start
     LicenseUrl: LICENSE
     ReadmeUrl: README.md
     Labels:
@@ -20,43 +20,46 @@ Metadata:
       - stepfunctions
       - buildkite
     HomePageUrl: https://aws.amazon.com/quickstart/eventbridge/buildkite-build-workflow
-    SemanticVersion: 1.0.0
+    SemanticVersion: 0.1.0
     SourceCodeUrl: https://github.com/aws-quickstart/eventbridge-integration-solution-buildkite-build-workflow
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
           default: Amazon EventBridge Integration Solution
         Parameters:
-          - EventSourceName
+        - EventSourceName
       - Label:
-          default: User information 
+          default: Amazon S3
         Parameters:
-          - S3EventBucketName
-          - ContactEmailInformation
+        - BucketName
+      - Label:
+        default: Amazon SNS
+        Paramers:
+        - ContactEmail
     ParameterLabels:
       EventSourceName:
         default: Event Source Name
-      S3EventBucketName:
-        default: S3 Artifact Bucket
-      ContactEmailInformation:
-        default: hello@example.com
+      BucketName:
+        default: Bucket Name
+      ContactEmail:
+        default: Contact Email
 Parameters:
   EventSourceName:
     Type: String
-    Default: aws.partner/buildkite.com/amazon-eventbridge/uuid
-    MinLength: 49
+    AllowedPattern: aws\.partner(/[\.\-_A-Za-z0-9]+){2,}
+    MinLength: 1
     MaxLength: 256
-    Description: Name of the Buildkite Partner Event Source to associate with an Event Bus. For example, aws.partner/buildkite.com/amazon-eventbridge/uuid
+    Description: Name of the Buildkite Partner Event Source to associate with an Event Bus. For example, aws.partner/buildkite.com/<org-slug>/<uuid>
   BucketName:
     Type: String
     Default: ''
     AllowedPattern: '[a-zA-Z0-9.-]*'
     MaxLength: 63
     Description: Name of the Amazon S3 Bucket to create. Leave blank for an automatically generated name.
-  ContactEmailInformation:
+  ContactEmail:
     Type: String
-    Default: hello@example.com
-    Description: Email for user to be notified.
+    MinLength: 1
+    Description: Email address for user to be notified from the Amazon SNS topic
 
 Conditions:
   AutoGenerateBucketName:
@@ -65,146 +68,177 @@ Conditions:
 Globals:
   Function:
     Runtime: python3.8
-    CodeUri: src/functions
     Timeout: 3
+
 Resources:
-  ArtifactS3Bucket:
-    Type: AWS::S3::Bucket
-    Condition: AutoGenerateBucketName
-  SavetoS3Function:
-    Type: AWS::Serverless::Function
-    Properties:
-      Environment:
-        Variables:
-          s3_bucket_name: !If [AutoGenerateBucketName, !Ref ArtifactS3Bucket, !Ref BucketName]
-      FunctionName: !Sub ${AWS::StackName}-s3
-      Handler: save-to-s3.lambda_handler
-  NotifyUserFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub ${AWS::StackName}-notify
-      Handler: notification.lambda_handler
-  BuildkiteRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: !Sub ${AWS::StackName}-rule
-      Description: "Buildkite Build Finished Rule"
-      EventBusName: !GetAtt EventBridgeEventBus.Name
-      EventPattern:
-        detail-type:
-          - Build Finished
-      State: "ENABLED"
-      Targets:
-        - Arn: !Ref "WorkFlowStepFunctions"
-          Id: Id123
-          RoleArn: !GetAtt WorkFlowExecutionRole.Arn
   EventBridgeEventBus:
     Type: AWS::Events::EventBus
     Properties:
       EventSourceName: !Ref EventSourceName
       Name: !Ref EventSourceName
+
+  BuildkiteRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Buildkite Build Finished Rule
+      EventBusName: !GetAtt EventBridgeEventBus.Name
+      EventPattern:
+        detail-type:
+        - Build Finished
+      State: ENABLED
+      Targets:
+      - Arn: !Ref WorkFlowStepFunctions
+        Id: WorkFlowStepFunctions
+        RoleArn: !GetAtt WorkFlowExecutionRole.Arn
+
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+      BucketName:
+        !If [ AutoGenerateBucketName, !Ref 'AWS::NoValue', !Ref BucketName ]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  SavetoS3Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/save_to_s3
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          s3_bucket_name: !Ref S3Bucket
+
+  NotifyUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/notification
+      Handler: app.lambda_handler
+
   WorkFlowExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                !Sub events.amazonaws.com
-            Action: sts:AssumeRole
+        - Effect: Allow
+          Principal:
+            Service:
+              !Sub events.amazonaws.com
+          Action: sts:AssumeRole
       Path: /
       Policies:
-        - PolicyName: InvokeStepFunctionsPolicy
-          PolicyDocument: 
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - states:StartExecution
-                Resource: !Ref WorkFlowStepFunctions
+      - PolicyName: InvokeStepFunctionsPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - states:StartExecution
+            Resource: !Ref WorkFlowStepFunctions
+
   StatesExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                !Sub states.amazonaws.com
-            Action: sts:AssumeRole
+        - Effect: Allow
+          Principal:
+            Service:
+              !Sub states.amazonaws.com
+          Action: sts:AssumeRole
       Path: /
       Policies:
-        - PolicyName: StatesExecutionPolicy
-          PolicyDocument: 
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                  - logs:CreateLogDelivery
-                  - logs:GetLogDelivery
-                  - logs:UpdateLogDelivery
-                  - logs:DeleteLogDelivery
-                  - logs:ListLogDeliveries
-                  - logs:PutResourcePolicy
-                  - logs:DescribeResourcePolicies
-                  - logs:DescribeLogGroups
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - logs:PutMetricFilter
-                  - logs:PutRetentionPolicy
-                  - sns:Publish
-                Resource: '*'
+      - PolicyName: StatesExecutionPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogDelivery
+            - logs:GetLogDelivery
+            - logs:UpdateLogDelivery
+            - logs:DeleteLogDelivery
+            - logs:ListLogDeliveries
+            - logs:PutResourcePolicy
+            - logs:DescribeResourcePolicies
+            - logs:DescribeLogGroups
+            # See: https://docs.aws.amazon.com/step-functions/latest/dg/cw-logs.html
+            #- logs:CreateLogGroup
+            #- logs:CreateLogStream
+            #- logs:PutLogEvents
+            #- logs:PutMetricFilter
+            #- logs:PutRetentionPolicy
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - lambda:InvokeFunction
+            Resource:
+            - !GetAtt SavetoS3Function.Arn
+            - !GetAtt NotifyUserFunction.Arn
+          - Effect: Allow
+            Action:
+            - sns:Publish
+            Resource:
+            - !Ref NotifyUserTopic
+
   WorkFlowStepFunctions:
     Type: AWS::StepFunctions::StateMachine
     Properties:
       StateMachineName: !Sub ${AWS::StackName}-state-machine
-      DefinitionString: 
+      DefinitionString:
         !Sub
-          - |
-            {
-              "StartAt": "Save Artifact to S3",
-              "States": {
-                "Save Artifact to S3": {
-                  "Type": "Task",
-                  "Resource": "${lambdaArn}",
-                  "Next": "Format Notification"
+        - |
+          {
+            "StartAt": "Save Artifact to S3",
+            "States": {
+              "Save Artifact to S3": {
+                "Type": "Task",
+                "Resource": "${lambdaArn}",
+                "Next": "Format Notification"
+              },
+              "Format Notification": {
+                "Type": "Task",
+                "Resource": "${lambda2Arn}",
+                "Next": "Publish to SNS"
+              },
+              "Publish to SNS": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::sns:publish",
+                "Parameters": {
+                  "TopicArn": "${snsArn}",
+                  "Message.$": "$.message",
+                  "Subject.$": "$.subject"
                 },
-                "Format Notification": {
-                  "Type": "Task",
-                  "Resource": "${lambda2Arn}",
-                  "Next": "Publish to SNS"
-                },
-                "Publish to SNS": {
-                  "Type": "Task",
-                  "Resource": "arn:aws:states:::sns:publish",
-                  "Parameters": {
-                    "TopicArn": "${snsArn}",
-                    "Message.$": "$.message",
-                    "Subject.$": "$.subject"
-                  },
-                  "End": true
-                }
+                "End": true
               }
             }
-          - lambdaArn: !GetAtt SavetoS3Function.Arn
-            lambda2Arn: !GetAtt NotifyUserFunction.Arn
-            snsArn: !Ref NotifyUserTopic
+          }
+        - lambdaArn: !GetAtt SavetoS3Function.Arn
+          lambda2Arn: !GetAtt NotifyUserFunction.Arn
+          snsArn: !Ref NotifyUserTopic
       RoleArn: !GetAtt StatesExecutionRole.Arn
+
   NotifyUserTopic:
     Type: AWS::SNS::Topic
     Properties:
       Subscription:
-        - Endpoint: !Ref ContactEmailInformation
-          Protocol: email
-      TopicName: 
-        !Sub ${AWS::StackName}-notify-topic
+      - Endpoint: !Ref ContactEmail
+        Protocol: email
+
 Outputs:
-  BuildkiteRule:
+  EventBridgeEventBus:
+    Description: SaaS Event Bus ARN
+    Value: !GetAtt EventBridgeEventBus.Arn
+  EventBridgeRule:
     Description: EventBridge Rule ARN
     Value: !GetAtt BuildkiteRule.Arn
   SavetoS3Function:
