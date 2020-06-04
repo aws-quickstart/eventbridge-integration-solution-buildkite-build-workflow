@@ -17,7 +17,7 @@ Metadata:
     - integration
     - solution
     - aws
-    - step functions
+    - step_functions
     - buildkite
     HomePageUrl: https://github.com/aws-quickstart/eventbridge-integration-solution-buildkite-build-workflow
     SemanticVersion: 0.1.1
