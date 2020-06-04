@@ -80,11 +80,11 @@ Resources:
   BuildkiteRule:
     Type: AWS::Events::Rule
     Properties:
-      Description: Buildkite Build Finished Rule
+      Description: Buildkite Build Started Rule
       EventBusName: !GetAtt EventBridgeEventBus.Name
       EventPattern:
         detail-type:
-        - Build Finished
+        - Build Started
       State: ENABLED
       Targets:
       - Arn: !Ref WorkFlowStepFunctions
@@ -174,12 +174,6 @@ Resources:
             - logs:PutResourcePolicy
             - logs:DescribeResourcePolicies
             - logs:DescribeLogGroups
-            # See: https://docs.aws.amazon.com/step-functions/latest/dg/cw-logs.html
-            #- logs:CreateLogGroup
-            #- logs:CreateLogStream
-            #- logs:PutLogEvents
-            #- logs:PutMetricFilter
-            #- logs:PutRetentionPolicy
             Resource: '*'
           - Effect: Allow
             Action:
@@ -196,7 +190,6 @@ Resources:
   WorkFlowStepFunctions:
     Type: AWS::StepFunctions::StateMachine
     Properties:
-      StateMachineName: !Sub ${AWS::StackName}-state-machine
       DefinitionString:
         !Sub
         - |
