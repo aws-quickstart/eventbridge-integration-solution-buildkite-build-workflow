@@ -19,8 +19,8 @@ Metadata:
     - aws
     - step functions
     - buildkite
-    HomePageUrl: https://aws.amazon.com/quickstart/eventbridge/buildkite-build-workflow
-    SemanticVersion: 0.1.0
+    HomePageUrl: https://github.com/aws-quickstart/eventbridge-integration-solution-buildkite-build-workflow
+    SemanticVersion: 0.1.1
     SourceCodeUrl: https://github.com/aws-quickstart/eventbridge-integration-solution-buildkite-build-workflow
   AWS::CloudFormation::Interface:
     ParameterGroups:
